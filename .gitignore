@@ -5,6 +5,9 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+backend/.env
+backend/.env.local
+backend/.env.*.local
 
 # Editor / OS noise
 .vscode/*
@@ -18,3 +21,13 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+
+# Backend specific
+backend/node_modules/
+backend/dist/
+
+# Legacy one-off tooling at the repo root (helpers/snapshots from earlier
+# restructure attempts — not part of the shipped app; validators live in
+# frontend/scripts/).
+/scripts/
+
