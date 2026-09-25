@@ -22,14 +22,14 @@ export function SettingsPage() {
             <ol className="muted">
               <li>Schema: the SQL migrations (001 → 028) and the consolidated backend/database/schema.sql.</li>
               <li>Start the API (cd backend &amp;&amp; npm run dev), then sign up at /login — first account becomes owner + store.</li>
-              <li>Frontend connects through VITE_API_BASE_URL (http://localhost:5000/api).</li>
+              <li>Frontend connects through VITE_API_BASE_URL (`/api`, proxied by Vite to the backend on port 5000).</li>
               <li>Verify DB rules anytime with npm run validate:db (PGlite, no server needed).</li>
             </ol>
           </>
         ) : (
           <p className="muted">
             Local demo mode. Copy <code>frontend/.env.example</code> to <code>frontend/.env</code>,
-            set <code>VITE_API_BASE_URL=http://localhost:5000/api</code>, then restart the dev server.
+            set <code>VITE_API_BASE_URL=/api</code> (Vite proxies it to the backend), then restart the dev server.
           </p>
         )}
       </div>

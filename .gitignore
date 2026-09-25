@@ -4,10 +4,15 @@ dist-ssr/
 *.local
 .env
 .env.local
+.env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 .env.*.local
 backend/.env
 backend/.env.local
 backend/.env.*.local
+.vercel/
 
 # Editor / OS noise
 .vscode/*

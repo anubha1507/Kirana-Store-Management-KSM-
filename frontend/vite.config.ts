@@ -9,6 +9,13 @@ export default defineConfig({
     host: 'localhost',
     port: 5173,
     strictPort: true,
+    // Single-origin dev setup: browser calls `/api/...` on this same origin
+    // and Vite forwards it to the Express backend, so frontend + backend are
+    // reachable from one localhost link (http://localhost:5173) with no CORS.
+    proxy: {
+      '/api': 'http://localhost:5000',
+      '/health': 'http://localhost:5000',
+    },
   },
   preview: {
     host: 'localhost',

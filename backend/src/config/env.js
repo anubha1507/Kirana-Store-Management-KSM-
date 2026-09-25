@@ -10,8 +10,11 @@ const require = createRequire(import.meta.url);
 const possibleEnvPaths = [
   join(__dirname, '..', '..', '.env'),
   join(__dirname, '..', '..', '.env.local'),
-  join(__dirname, '..', '..', '.env.example'),
 ];
+
+if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
+  possibleEnvPaths.push(join(__dirname, '..', '..', '.env.example'));
+}
 
 let loadedFrom = null;
 for (const envPath of possibleEnvPaths) {
