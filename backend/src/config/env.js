@@ -42,6 +42,8 @@ export const env = {
   jwtIssuer: getRequired('JWT_ISSUER', 'http://localhost:5000/api'),
   jwtAudience: getRequired('JWT_AUDIENCE', 'kirana-store-admin'),
   databaseUrl: process.env.DATABASE_URL || '',
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
   loadedFrom,
 };
 

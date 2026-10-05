@@ -31,6 +31,10 @@ router.post(
   auth.login
 );
 
+// POST /api/auth/supabase — exchange a verified Supabase session for the
+// existing KSM API JWT used by store-scoped routes.
+router.post('/supabase', auth.supabaseExchange);
+
 // POST /api/auth/logout — client discards its token (stateless JWTs)
 router.post('/logout', auth.logout);
 

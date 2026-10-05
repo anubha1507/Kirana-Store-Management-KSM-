@@ -1,5 +1,6 @@
-import { apiPost, apiGet } from './api';
+import { apiPost, apiGet, apiFetch } from './api';
 import type { AppRole } from './types';
+import { isSupabaseAuthConfigured, supabase } from './supabase';
 
 export interface BackendUser {
   id: string;
@@ -16,6 +17,13 @@ const DEMO_ROLE_MAP: Record<string, AppRole> = {
 };
 
 export async function loginBackend(email: string, password: string) {
+  if (isSupabaseAuthConfigured && supabase) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    if (!data.session) throw new Error('Please verify your email before signing in.');
+    const body = await exchangeSupabaseSession(data.session.access_token);
+    return normalizeUser(body.user);
+  }
   const body = await apiPost('auth/login', { email, password });
   const token = body.token as string | undefined;
   if (!token) throw new Error('Backend login succeeded but no token was returned.');
@@ -26,6 +34,17 @@ export async function loginBackend(email: string, password: string) {
 }
 
 export async function signupBackend(email: string, password: string, fullName: string, role: 'owner' | 'manager' | 'cashier' = 'cashier') {
+  if (isSupabaseAuthConfigured && supabase) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName, role } },
+    });
+    if (error) throw new Error(error.message);
+    if (!data.session) throw new Error('Account created. Check your Gmail inbox and verify your email before signing in.');
+    const body = await exchangeSupabaseSession(data.session.access_token);
+    return normalizeUser(body.user);
+  }
   const body = await apiPost('auth/signup', { email, password, fullName, role });
   const token = body.token as string | undefined;
   if (!token) throw new Error('Backend signup succeeded but no token was returned.');
@@ -95,4 +114,18 @@ export function normalizeUser(raw: Record<string, unknown> | undefined): Backend
     role,
     avatarUrl: avatarUrl ?? null,
   };
+}
+
+async function exchangeSupabaseSession(accessToken: string) {
+  return apiFetch('auth/supabase', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: '{}',
+  });
+}
+
+export async function resendSignupVerification(email: string) {
+  if (!supabase) throw new Error('Supabase Auth is not configured.');
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) throw new Error(error.message);
 }

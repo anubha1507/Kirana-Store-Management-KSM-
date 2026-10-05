@@ -1,8 +1,62 @@
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { withAuth } from '../config/db.js';
+import { env } from '../config/env.js';
 import * as userModel from '../models/user.model.js';
 import { createSessionToken, verifySessionToken } from '../utils/auth.js';
+
+async function getSupabaseUser(accessToken) {
+  if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    throw Object.assign(new Error('Supabase Auth is not configured on the backend.'), { status: 503 });
+  }
+  const response = await fetch(`${env.supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+    headers: {
+      apikey: env.supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+export async function supabaseExchange(req, res, next) {
+  try {
+    const header = req.headers.authorization || '';
+    const accessToken = header.startsWith('Bearer ') ? header.slice(7) : '';
+    const supabaseUser = accessToken ? await getSupabaseUser(accessToken) : null;
+    if (!supabaseUser?.id || !supabaseUser.email) {
+      return res.status(401).json({ success: false, message: 'A verified Supabase session is required.' });
+    }
+
+    let user = await userModel.findById(supabaseUser.id);
+    if (!user) user = await userModel.findByEmail(supabaseUser.email);
+    if (!user) {
+      const fullName = supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0];
+      const role = ['owner', 'manager', 'cashier'].includes(supabaseUser.user_metadata?.role)
+        ? supabaseUser.user_metadata.role
+        : 'cashier';
+      const passwordHash = await bcrypt.hash(randomUUID(), 10);
+      user = await withAuth({ id: supabaseUser.id, email: supabaseUser.email, role, storeId: null }, async (client) => {
+        const created = await userModel.insertSupabaseUser(client, {
+          id: supabaseUser.id,
+          email: supabaseUser.email,
+          fullName,
+          role,
+          passwordHash,
+        });
+        const { rows } = await client.query('SELECT public.create_store($1) AS store', [`${fullName}'s Store`]);
+        const storeId = rows[0]?.store?.id ?? null;
+        return storeId ? (await userModel.setStore(client, supabaseUser.id, storeId)) || created : created;
+      });
+    }
+
+    await userModel.touchLastLogin(user.id);
+    const token = await createSessionToken(user.id, user.role, user.store_id, user.email);
+    return res.json({ success: true, data: { token, user: userModel.toPublic(user) } });
+  } catch (error) {
+    return next(error);
+  }
+}
 
 // POST /api/auth/signup
 // Creates the account and provisions its first store in ONE transaction:

@@ -31,6 +31,10 @@ export async function insert(client, { id, email, fullName, passwordHash, role }
   return rows[0];
 }
 
+export async function insertSupabaseUser(client, { id, email, fullName, role, passwordHash }) {
+  return insert(client, { id, email, fullName, passwordHash, role });
+}
+
 export async function setStore(client, id, storeId) {
   const { rows } = await client.query(
     `UPDATE public.backend_users SET store_id = $1 WHERE id = $2 RETURNING ${COLS}`,

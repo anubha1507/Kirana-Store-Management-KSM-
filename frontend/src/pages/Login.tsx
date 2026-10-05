@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Store, ShieldCheck, Zap, BookOpen } from 'lucide-react';
+import { Store, ShieldCheck, Zap, BookOpen, Eye, EyeOff } from 'lucide-react';
 import { useApp } from '../app/store';
 import type { AppRole } from '../lib/types';
+import { resendSignupVerification } from '../lib/auth';
 
 export function LoginPage() {
   const { signInDemo, signInBackend, signUpBackend, mode } = useApp();
@@ -12,9 +13,13 @@ export function LoginPage() {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState(false);
 
   const enterDemo = () => {
     signInDemo(role);
@@ -24,6 +29,11 @@ export function LoginPage() {
   async function submitBackend(e: FormEvent) {
     e.preventDefault();
     setErr('');
+    setVerificationNotice(false);
+    if (tab === 'signup' && password !== confirmPassword) {
+      setErr('Passwords do not match.');
+      return;
+    }
     setBusy(true);
     try {
       if (tab === 'login') {
@@ -33,7 +43,9 @@ export function LoginPage() {
       }
       navigate('/');
     } catch (error) {
-      setErr((error as Error).message || 'Sign-in failed.');
+      const message = (error as Error).message || 'Sign-in failed.';
+      setVerificationNotice(tab === 'signup' && message.startsWith('Account created.'));
+      setErr(message);
     } finally {
       setBusy(false);
     }
@@ -51,6 +63,18 @@ export function LoginPage() {
         {mode === 'backend' ? (
           <form onSubmit={submitBackend}>
             {err && <div className="alert err">{err}</div>}
+            {verificationNotice && (
+              <button className="btn ghost block" type="button" onClick={async () => {
+                try {
+                  await resendSignupVerification(email.trim());
+                  setErr('A new verification email was sent. Check your Gmail inbox and spam folder.');
+                } catch (error) {
+                  setErr((error as Error).message || 'Could not resend verification email.');
+                }
+              }}>
+                Resend verification email
+              </button>
+            )}
             <div className="role-grid">
               <button
                 type="button"
@@ -79,8 +103,23 @@ export function LoginPage() {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="owner@example.com" autoComplete="email" required />
               </label>
               <label>Password
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" autoComplete={tab === 'login' ? 'current-password' : 'new-password'} minLength={tab === 'signup' ? 8 : undefined} required />
+                <span className="password-field">
+                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" autoComplete={tab === 'login' ? 'current-password' : 'new-password'} minLength={tab === 'signup' ? 8 : undefined} required />
+                  <button className="password-toggle" type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'} title={showPassword ? 'Hide password' : 'Show password'}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </span>
               </label>
+              {tab === 'signup' && (
+                <label>Confirm password
+                  <span className="password-field">
+                    <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" autoComplete="new-password" minLength={8} required />
+                    <button className="password-toggle" type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} aria-label={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'} title={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'}>
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </span>
+                </label>
+              )}
               {tab === 'signup' && (
                 <label>Role
                   <select value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
